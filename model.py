@@ -1,6 +1,3 @@
-import torch
-import torch.nn
-
-class InputEmbeddings(nn.Module):
+class Model:
     pass
 
