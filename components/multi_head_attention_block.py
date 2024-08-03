@@ -1,4 +1,4 @@
-import torch
+import math
 import torch.nn as nn
 
 class MultiHeadAttentionBlock(nn.Module):
@@ -27,6 +27,27 @@ class MultiHeadAttentionBlock(nn.Module):
         query = self._restructure_matrix_for_heads(query)
         key = self._restructure_matrix_for_heads(key)
         value = self._restructure_matrix_for_heads(value)
+
+        x, self.attention_scores = self._attention(query, key, value, mask, self._dropout)
+
+        # (Batch, no. of heads, sequence length, d_k) --> (Batch, sequence length, no. of heads, d_k) --> (Batch, sequence length, d_model)
+        x.transpose(1, 2).contiguous().view(x.shape[0], -1, self._no_of_heads * self._d_k)
+
+        # (Batch, sequence length, d_model) --> (Batch, sequence length, d_model)
+        return self._w_o(x)
+
+    @staticmethod
+    def _attention(query, key, value, mask, dropout):
+        d_k = query.shape[-1]
+
+        # (Batch, no of heads, seq_len, d_k) -> (Batch, no of heads, seq_len, seq_len)
+        attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
+        if mask is not None:
+            attention_scores.masked_fill_(mask == 0, -1e9)
+        attention_scores = attention_scores.softmax(dim = -1) # (Batch, no of heads, seq_len, seq_len)
+        if dropout:
+            attention_scores = dropout(attention_scores)
+        return (attention_scores @ value), attention_scores
 
     def _restructure_matrix_for_heads(self, matrix):
         # (Batch, Seq_len, d_model) -> (Batch, no. of heads, sequence length, d_model)
