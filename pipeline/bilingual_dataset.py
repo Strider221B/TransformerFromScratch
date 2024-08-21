@@ -67,18 +67,19 @@ class BilingualDataset(Dataset):
             const.INPUT_DECODER: decoder_input,
             const.LABEL: label,
             const.MASK_ENCODER: self._get_padding_mask(encoder_input), 
-            const.MASK_DECODER: self._get_padding_mask(decoder_input) & self._get_causal_mask(decoder_input.size(0)),
+            const.MASK_DECODER: self._get_padding_mask(decoder_input) & self.get_causal_mask(decoder_input.size(0)),
             const.TEXT_SOURCE: source_text,
             const.TEXT_TARGET: target_text
         }
     
-    def _get_padding_mask(self, tensor: torch.Tensor):
-        return (tensor != self._token_pad).unsqueeze(0).unsqueeze(0).int() # (1, 1, sequence_len) => for sequence and batch dimension later
-    
-    def _get_causal_mask(self, input_size: int):
+    @staticmethod
+    def get_causal_mask(input_size: int):
         # we don't want to use next words for prediction. We just want to use past words.
         mask = torch.triu(torch.ones(1, input_size, input_size), diagonal=1).type(torch.int)
         return mask == 0
+    
+    def _get_padding_mask(self, tensor: torch.Tensor):
+        return (tensor != self._token_pad).unsqueeze(0).unsqueeze(0).int() # (1, 1, sequence_len) => for sequence and batch dimension later
 
     def _get_number_of_padding_tokens_required_for(self, 
                                                    tokens: list,
